@@ -1,116 +1,156 @@
-// // Set up URL for data
-const url =
-    "https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classroom/v1.1/14-Interactive-Web-Visualizations/02-Homework/samples.json";
+//STEP 1: Using D3 to read in samples.json 
+//URL
+const url = "https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classroom/v1.1/14-Interactive-Web-Visualizations/02-Homework/samples.json"
 
-// Promise pending for obtaining JSON data from URL
-const dataPromise = d3.json(url);
-    console.log("Data Promise: ", dataPromise);
+//Reading in the URL and confiming in the console log that the data has been pulled. 
+d3.json(url).then(function(data) {
+   console.log(data);
+  });
 
-// // Fetch the JSON data and console log it
-d3.json(url).then(function(data){
-    console.log(data);
-});
-// Set up variables and get data from JSON for charts 
-var samples;
-var meta_data;
-d3.json(url).then(function (data) {
-    let selector = d3.select("#selDataset");
-    meta_data = data.metadata;
-    samples = data.samples;
-    data.names.forEach((id) => {
-        selector.append("option").text(id).property("value", id);
+//STEP 6 (Moving this up), add all items in the names array from the json data to the page's drop down menu and use the first id as the default display data. It made more sense to have this at the top. 
+
+function init() {
+    //selects the dropdown id on the webpage
+    let dropdownMenu = d3.select("#selDataset");
+
+    //Feteches the json data from our url above
+    d3.json(url).then((data) => {
+        //assign the array of names from the json file to a variable
+        let names = data.names;
+
+        //Append each id number in names to the dropdown menu
+        names.forEach((id) => {
+            dropdownMenu.append("option").text(id).property("value", id);
+        });
+
+        //Assign the first item in names as the default value
+        let id = names[0];
+
+        barChart(id);
+        bubbleChart(id);
+        demoChart(id);
+        gaugeChart(id);
+
     });
-    metaData(meta_data[0]);
-    hbarChart(samples[0]);
-    bubbleChart(samples[0]);
-});
+};
 
-function optionChanged(value) {
-    const selectedId = samples.find((item) => item.id === value);
-    const demographicInfo = meta_data.find((item) => item.id == value);
+//Update all data on the page when a different id on the dropdown menu is selected. This updates based on "optionChanged" in the HTML and the value slected in "optionChanged"
+function optionChanged(id_no) {
+    barChart(id_no);
+    bubbleChart(id_no);
+    demoChart(id_no);
+    gaugeChart(id);
+};
 
-    // Insterting Demographic Data
-    metaData(demographicInfo);
 
-    // Bar Chart
-    hbarChart(selectedId);
+//STEP 2: Make horizontal bar chart of top 10 OTUS found in individual
 
-    // Bubble Chart
-    bubbleChart(selectedId);
+//Create a function to create the bar chart based on the selected ID number
+function barChart(id_no) {
+    //Get json data
+    d3.json(url).then((data) => {
 
-}
+        //set the samples data to a variable.
+        let samples = data.samples;
+        //filter the data based on the id numer from the droptdown
+        let samplesData = samples.filter((sample) => sample.id == id_no);
+        //access the first case in the data
+        let result = samplesData[0];
+        
+        //create trace data for plotting. All data is already orderd from smallest to largest so no additional sorting is needed. Data can be sliced as is for the top 10 OTUs and then reversed for the horizontal bar chart. 
+        let trace = [{
+            x: result.sample_values.slice(0,10).reverse(),
+            y: result.otu_ids.slice(0,10).map((otu_id) => `OTU ${otu_id}`).reverse(),
+            text: result.otu_labels.slice(0,10).reverse(),
+            type: "bar",
+            orientation: "h",
+            marker: {
+                color: "rgb(24, 120, 181)"
+            },
+        }];
 
-function metaData(demographicInfo) {
-    let demoSelect = d3.select("#sample-metadata");
+        //Set a layout so the chart is not too big
+        let layout = {
+            height: 600,
+            width: 400,
+            title: {
+                text:`Top 10 OTUs Found in Test Subject No. ${id_no}`}
+          };
 
-    demoSelect.html(
-        `id: ${demographicInfo.id} <br> 
-      ethnicity: ${demographicInfo.ethnicity} <br>
-    gender: ${demographicInfo.gender} <br>
-    age: ${demographicInfo.age} <br>
-    location: ${demographicInfo.location} <br>
-    bbtype: ${demographicInfo.bbtype} <br>
-    wfreq: ${demographicInfo.wfreq}`
-    );
-}
+        //Plot the data in the bar chart. 
+        Plotly.newPlot("bar",trace, layout)
+    }); 
+};
 
-function hbarChart(selectedId) {
-    let x_axis = selectedId.sample_values.slice(0, 10).reverse();
-    let y_axis = selectedId.otu_ids
-        .slice(0, 10)
-        .reverse()
-        .map((item) => `OTU ${item}`);
-    let text = selectedId.otu_labels.slice(0, 10).reverse();
+//STEP 3: Bubble chart
 
-    barChart = {
-        x: x_axis,
-        y: y_axis,
-        text: text,
-        type: "bar",
-        orientation: "h",
-    };
+//Create a function to create the bar chart based on the selected ID number
+function bubbleChart(id_no) {
+    //Get json data
+    d3.json(url).then((data) => {
 
-    let chart = [barChart];
+        //set the samples data to a variable.
+        let samples = data.samples;
+        //filter the data based on the id numer from the droptdown
+        let samplesData = samples.filter((sample) => sample.id == id_no);
+        //access the first case in the data
+        let result = samplesData[0];
+        
+        //create trace data for plotting.
+        let trace = [{
+            x: result.otu_ids,
+            y: result.sample_values,
+            text: result.otu_labels,
+            type: "bubble",
+            mode:"markers",
+            marker: {
+                size: result.sample_values,
+                color: result.otu_ids,
+                colorscale: "Earth"
+            },
+        }];
 
-    let layout = {
-        margin: {
-            l: 100,
-            r: 100,
-            t: 0,
-            b: 100,
-        },
-        height: 500,
-        width: 600,
-    };
+        //Set a layout so the chart is not too big
+        let layout = {
+            height: 500,
+            width: 1500,
+            title: {
+                text:`OTUs in Test Subject No. ${id_no}`},
+            xaxis: {
+                title: {text:"OTU IDs"}
+            }
+          };
 
-    Plotly.newPlot("bar", chart, layout);
-}
+        //Plot the data in the bar chart. 
+        Plotly.newPlot("bubble",trace, layout)
+    }); 
+};
 
-function bubbleChart(selectedId) {
-    let x_axis = selectedId.otu_ids;
-    let y_axis = selectedId.sample_values;
-    let marker_size = selectedId.sample_values;
-    let color = selectedId.otu_ids;
-    let text = selectedId.otu_labels;
+//STEP 4/5: Display sample metadata / each key-value pair from the metadata
 
-    bubble = {
-        x: x_axis,
-        y: y_axis,
-        text: text,
-        mode: "markers",
-        marker: {
-            color: color,
-            colorscale: "Pastel",
-            size: marker_size,
-        },
-        type: "scatter",
-    };
-    let chart = [bubble];
+function demoChart(id_no) {
+    //Get json data
+    d3.json(url).then((data) => {
 
-    let layout = {
-        xaxis: {
-            title: { text: "OTU ID" },
-        },
-    };
-    Plotly.newPlot("bubble", chart, layout);
-}
+        //set the samples data to a variable.
+        let metadata = data.metadata;
+        //filter the data based on the id numer from the droptdown
+        let metadataID = metadata.filter((meta) => meta.id == id_no);
+        //access the first case in the data
+        let result = metadataID[0];
+
+        //clear any existing data
+        d3.select("#sample-metadata").html("");
+
+        //assign the demo box of the page to a variable
+        let demotable = d3.select("#sample-metadata")
+        //add each key-value pair to the demo box
+        Object.entries(result).forEach(([key,value]) => {
+            demotable.append("h6").text(`${key}: ${value}`)
+        });
+
+    }); 
+};
+
+//Initiate all charts and data on the page
+init();
